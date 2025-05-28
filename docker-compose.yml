@@ -1,5 +1,7 @@
+
+
 services:
-  unitybuilderdocker:
+  unityimagebuilder:
     image: unity6
     build:
       context: .
@@ -7,18 +9,22 @@ services:
     ports:
       - 3000:3000
     volumes:
+      - /mnt/unity_data/unity_editors:/opt/unity
+      - /mnt/unity_data/unity_cache:/root/.config/Unity\ Hub
       - /tmp/.X11-unix:/tmp/.X11-unix
     environment:
       - DISPLAY=:99
-      
-  unity-builder:
-    image: unity6 
+
+  gitpull:
+    image: unity6
+    build:
+      context: .
+      dockerfile: ./unity6
     volumes:
-      - /path/to/your/unity/project:/project
+      - /mnt/unity_data/unity_projects:/project
+      - /mnt/unity_data/unity_cache:/root/.config/Unity\ Hub
       - /tmp/.X11-unix:/tmp/.X11-unix
     environment:
-      - UNITY_USERNAME=your-username
-      - UNITY_PASSWORD=your-password
-      - UNITY_SERIAL=your-serial-number
       - DISPLAY=:99
-    command: /bin/bash -c "cd /project && unity-cli build -buildTarget StandaloneWindows64"
+    command: /bin/bash -c "cd /project && git pull"
+
