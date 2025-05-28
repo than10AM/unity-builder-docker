@@ -1,9 +1,24 @@
 services:
   unitybuilderdocker:
-    image: unitybuilderdocker
+    image: unity6
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: ./unity6
     ports:
       - 3000:3000
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - DISPLAY=:99
       
+  unity-builder:
+    image: unity6 
+    volumes:
+      - /path/to/your/unity/project:/project
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      - UNITY_USERNAME=your-username
+      - UNITY_PASSWORD=your-password
+      - UNITY_SERIAL=your-serial-number
+      - DISPLAY=:99
+    command: /bin/bash -c "cd /project && unity-cli build -buildTarget StandaloneWindows64"
