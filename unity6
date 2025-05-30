@@ -4,8 +4,10 @@ FROM --platform=linux/amd64 ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install dependencies and required packages
-RUN apt-get update && \
-    apt-get install -y \
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get update -o Acquire::Retries=3 && \
+    apt-get install -y --fix-missing \
     wget \
     gnupg \
     ca-certificates \
@@ -25,11 +27,20 @@ RUN apt-get update && \
     pulseaudio \
     libdbus-1-3 \
     libgbm1 \
-    dbus
+    dbus \
+    git \
+    git-lfs \
+    openssh-client \
+    file \
+    && rm -rf /var/lib/apt/lists/*
 
 # Setup dbus
-RUN mkdir -p /var/run/dbus && \
-    dbus-daemon --system
+# RUN mkdir -p /var/run/dbus && \
+#    dbus-daemon --system # Removed: Let install_unity.sh handle D-Bus startup if needed.
+
+# Setup SSH directory 
+RUN mkdir -p /root/.ssh && \
+    chmod 700 /root/.ssh
 
 # Print system information for debugging
 RUN echo "Architecture: $(dpkg --print-architecture)" && \
@@ -44,22 +55,12 @@ RUN apt-get update && apt-get install -y unityhub
 RUN mkdir -p /opt/unity && \
     mkdir -p /root/.config/Unity\ Hub
 
-# Add a script to install Unity (will run at container start)
-RUN echo '#!/bin/bash \n\
-Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 & \n\
-export DISPLAY=:99 \n\
-service dbus start || true \n\
-echo "Setting Unity install path..." \n\
-unityhub --headless install-path --set /opt/unity \n\
-echo "Available Unity versions:" \n\
-unityhub --headless editors --releases \n\
-# Use one of the versions from the output above \n\
-VERSION="2022.3.62f1" \n\
-echo "Installing Unity version $VERSION..." \n\
-unityhub --headless install --version $VERSION \n\
-echo "Unity installation completed" \n\
-tail -f /dev/null' > /install_unity.sh && \
-chmod +x /install_unity.sh
+# Copy scripts for git authentication and Unity installation
+COPY auth_git.sh /auth_git.sh
+COPY install_unity.sh /install_unity.sh
+COPY unity_build.sh /unity_build.sh
+RUN chmod +x /install_unity.sh
+RUN chmod +x /auth_git.sh
+RUN chmod +x /unity_build.sh
 
-# Create a CMD that starts the container and runs the installation script
-CMD ["/install_unity.sh"]
+WORKDIR /app

@@ -1,7 +1,5 @@
-
-
 services:
-  unityimagebuilder:
+  imagebuild:
     image: unity6
     build:
       context: .
@@ -9,22 +7,62 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - /mnt/unity_data/unity_editors:/opt/unity
-      - /mnt/unity_data/unity_cache:/root/.config/Unity\ Hub
+      - ./unity_editors:/opt/unity
+      - ./unity_cache:/root/.config/Unity\ Hub
       - /tmp/.X11-unix:/tmp/.X11-unix
+      - git_credentials_vol:/root/.git-credentials 
     environment:
       - DISPLAY=:99
-
-  gitpull:
+    env_file:
+      - .env
+    
+  unity_install:
+    
+  
+  gitclone:
     image: unity6
-    build:
-      context: .
-      dockerfile: ./unity6
     volumes:
-      - /mnt/unity_data/unity_projects:/project
-      - /mnt/unity_data/unity_cache:/root/.config/Unity\ Hub
+      - ./unity_editors:/opt/unity
+      - ./unity_cache:/root/.config/Unity\ Hub
       - /tmp/.X11-unix:/tmp/.X11-unix
+      - git_credentials_vol:/root/.git-credentials 
+      - project_data_vol:/project_data # Mount the named volume for project data
     environment:
       - DISPLAY=:99
-    command: /bin/bash -c "cd /project && git pull"
+    env_file:
+      - .env
+    command: >
+      bash -c "
+        export GIT_TERMINAL_PROMPT=0 && \
+        /auth_git.sh && \
+        git clone https://github.com/than10AM/TilutRabbitRun2.git /project_data
+      "
 
+  unitybuild_project:
+    image: unity6
+    volumes:
+      - ./unity_editors:/opt/unity
+      - ./unity_cache:/root/.config/Unity\ Hub
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - project_data_vol:/project_data # Mount the named volume for project data
+    environment:
+      - DISPLAY=:99
+    env_file:
+      - .env
+    command: >
+      bash -c "
+        echo 'Starting Xvfb for Unity Build...' && \
+        Xvfb :99 -screen 0 1024x768x24 & \
+        XVFB_PID=$$! && \
+        sleep 5 && \
+        echo 'Running Unity Build script...' && \
+        /unity_build.sh \"$$UNITY_USERNAME\" \"$$UNITY_PASSWORD\" /project_data /project_data/Builds/Windows/MyGame.exe && \
+        BUILD_EXIT_CODE=$$? && \
+        echo 'Stopping Xvfb...' && \
+        kill $$XVFB_PID && \
+        exit $$BUILD_EXIT_CODE
+      "
+
+volumes:
+  git_credentials_vol: # Define the named volume to share git credentials
+  project_data_vol: # Define the named volume for the cloned project data
