@@ -8,7 +8,7 @@
 # UNITY_EDITOR_PATH="C:/Program Files/Unity/Hub/Editor/2022.3.10f1/Editor/Unity.exe" # Windows with Hub
 # UNITY_EDITOR_PATH="/Applications/Unity/Hub/Editor/2022.3.10f1/Unity.app/Contents/MacOS/Unity" # macOS with Hub
 # UNITY_EDITOR_PATH="/opt/Unity/Hub/Editor/2022.3.10f1/Editor/Unity" # Linux with Hub
-UNITY_EDITOR_PATH="/opt/unity/Editor/6000.0.50f1/Editor/Unity" # <--- SET FOR DOCKER CONTAINER
+UNITY_EDITOR_PATH="/opt/unity/6000.0.50f1/Editor/Unity"
 # --- Script Arguments ---
 UNITY_USERNAME="$1"
 UNITY_PASSWORD="$2"
@@ -51,21 +51,32 @@ if [ -z "$UNITY_USERNAME" ] || [ -z "$UNITY_PASSWORD" ]; then
   exit 1
 fi
 
-# Resolve relative paths to absolute paths for clarity in logs and for Unity
 PROJECT_PATH="$(cd "$PROJECT_PATH" && pwd)"
-# For BUILD_OUTPUT_PATH, ensure the directory exists first, then get its absolute path
-BUILD_OUTPUT_DIR_ABS="$(cd "$(dirname "$BUILD_OUTPUT_PATH")" && pwd)"
+
+# For BUILD_OUTPUT_PATH, first get the directory part and filename
+BUILD_OUTPUT_DIR_RAW="$(dirname "$BUILD_OUTPUT_PATH")"
 BUILD_OUTPUT_FILENAME="$(basename "$BUILD_OUTPUT_PATH")"
-BUILD_OUTPUT_PATH_ABS="${BUILD_OUTPUT_DIR_ABS}/${BUILD_OUTPUT_FILENAME}"
 
 # Ensure build output directory exists
-mkdir -p "$BUILD_OUTPUT_DIR_ABS"
+mkdir -p "$BUILD_OUTPUT_DIR_RAW"
 if [ $? -ne 0 ]; then
-  echo "ERROR: Could not create build output directory: $BUILD_OUTPUT_DIR_ABS"
+  echo "ERROR: Could not create build output directory: $BUILD_OUTPUT_DIR_RAW"
   exit 1
 fi
 
+# Now that the directory is created, resolve its absolute path
+BUILD_OUTPUT_DIR_ABS="$(cd "$BUILD_OUTPUT_DIR_RAW" && pwd)"
+BUILD_OUTPUT_PATH_ABS="${BUILD_OUTPUT_DIR_ABS}/${BUILD_OUTPUT_FILENAME}"
+
+# Ensure build output directory exists (this check is now redundant if the above mkdir succeeded, but harmless)
+# mkdir -p "$BUILD_OUTPUT_DIR_ABS"
+# if [ $? -ne 0 ]; then
+#   echo "ERROR: Could not create build output directory: $BUILD_OUTPUT_DIR_ABS"
+#   exit 1
+# fi
+
 LOG_FILE_PATH="${PROJECT_PATH}/unity_build_$(date +%Y%m%d_%H%M%S).log"
+
 
 # --- Build Command ---
 echo "--------------------------------------------------"
@@ -81,7 +92,7 @@ echo "--------------------------------------------------"
 # Execute Unity Build
 # -quit: Quits the Unity Editor after the command is executed.
 # -batchmode: Runs Unity in non-interactive mode.
-# -nographics: Prevents Unity from initializing the graphics device (useful for headless builds).
+# -nographics: Prevents Unity from initializing the graphics device (useful for headless buiads).
 # -username & -password: For Unity login.
 # -projectPath: Specifies the project to open/build.
 # -buildWindows64Player: Builds a standalone 64-bit Windows player to the specified path.

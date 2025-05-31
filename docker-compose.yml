@@ -17,7 +17,35 @@ services:
       - .env
     
   unity_install:
-    
+    image: unity6 # Use the same image that has unityhub and dependencies
+    depends_on:
+      imagebuild: # Ensures the image is built before this service runs
+        condition: service_started # Or service_completed_successfully if imagebuild is a short-lived task
+    volumes:
+      - ./unity_editors:/opt/unity # Unity editors will be installed here
+      - ./unity_cache:/root/.config/Unity Hub # Unity Hub configuration
+      - /tmp/.X11-unix:/tmp/.X11-unix # For Xvfb if needed by the script
+      - ./install_unity.sh:/install_unity.sh # Mount the install script
+    environment:
+      - DISPLAY=:99 # Required by install_unity.sh
+    env_file:
+      - .env # If your install script needs any env vars from .env
+    command: >
+      bash -c "
+        echo 'Making install_unity.sh executable...' && \
+        chmod +x /install_unity.sh && \
+        echo 'Running Unity Install script (install_unity.sh)...' && \
+        /install_unity.sh && \
+        INSTALL_EXIT_CODE=$$? && \
+        echo 'Unity Install script finished with exit code: ' $$INSTALL_EXIT_CODE && \
+        if [ $$INSTALL_EXIT_CODE -ne 0 ]; then exit $$INSTALL_EXIT_CODE; fi && \
+        echo 'Unity installation process complete. Editors should be in ./unity_editors on the host.' && \
+        # Keep the container running for a bit if needed for inspection, or just exit.
+        # For a one-off install, it's fine to exit.
+        # If you want to check logs or state, you might add a 'sleep infinity' here
+        # and then manually stop the container.
+        exit 0
+      "    
   
   gitclone:
     image: unity6
