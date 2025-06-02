@@ -49,6 +49,7 @@ services:
   
   gitclone:
     image: unity6
+    platform: linux/amd64
     volumes:
       - ./unity_editors:/opt/unity
       - ./unity_cache:/root/.config/Unity\ Hub
@@ -63,9 +64,33 @@ services:
       bash -c "
         export GIT_TERMINAL_PROMPT=0 && \
         /auth_git.sh && \
-        git clone https://github.com/than10AM/TilutRabbitRun2.git /project_data
+        echo 'Attempting to clone repository...' && \
+        git clone https://github.com/than10AM/TilutRabbitRun2.git /project_data && \
+        echo 'Git clone completed successfully.' || (echo 'Git clone FAILED' >&2 && exit 1)
       "
-
+  generate_license:
+    image: unity6
+    volumes:
+      - ./unity_editors:/opt/unity # Unity editors location
+      - ./unity_cache:/root/.config/Unity Hub # Unity Hub configuration
+      - /tmp/.X11-unix:/tmp/.X11-unix # For Xvfb if needed
+      - ./license_files:/license_files # Where the .alf file will be saved
+      - ./unity_generate_license.sh:/unity_generate_license.sh # Mount the license generation script
+    environment:
+      - DISPLAY=:99
+    env_file:
+      - .env
+    command: >
+      bash -c "
+        echo 'Making unity_generate_license.sh executable...' && \
+        chmod +x /unity_generate_license.sh && \
+        echo 'Running Unity License Generator script...' && \
+        /unity_generate_license.sh && \
+        LICENSE_EXIT_CODE=$$? && \
+        echo 'License generation script finished with exit code: ' $$LICENSE_EXIT_CODE && \
+        if [ $$LICENSE_EXIT_CODE -ne 0 ]; then exit $$LICENSE_EXIT_CODE; fi && \
+        echo 'License generation complete. The .alf file should be in ./license_files on the host.'
+      "
   unitybuild_project:
     image: unity6
     volumes:
